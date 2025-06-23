@@ -1,10 +1,9 @@
 "use client";
-import { useState } from "react";
+import { ChangeEvent, useState } from "react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -28,19 +27,21 @@ import {
 
 const formSchema = z.object({
   title: z.string().min(1),
-  description: z.string().min(1),
+  description: z.string().optional(),
   content: z.string().min(1),
   isActive: z.unknown(),
-  thumbnail: z.string(),
+  thumbnail: z.instanceof(File),
   category: z.string(),
 });
 
 export default function MyForm() {
   const [preview, setPreview] = useState<string | null>(null);
-  const [files, setFiles] = useState<File[] | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+    },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
@@ -57,6 +58,13 @@ export default function MyForm() {
     }
   }
 
+  function getImageData(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return { file: null, displayUrl: null };
+    const displayUrl = URL.createObjectURL(file);
+    return { file, displayUrl };
+  }
+
   return (
     <Form {...form}>
       <form
@@ -70,7 +78,7 @@ export default function MyForm() {
             <FormItem>
               <FormLabel>Title</FormLabel>
               <FormControl>
-                <Input placeholder="Your title" type="" {...field} />
+                <Input type="text" placeholder="Your title" {...field} />
               </FormControl>
               {/* <FormDescription>This is your public display name.</FormDescription> */}
               <FormMessage />
@@ -104,7 +112,11 @@ export default function MyForm() {
             <FormItem>
               <FormLabel>Content</FormLabel>
               <FormControl>
-                <Textarea placeholder="A interesting content here!" className="resize-none" {...field} />
+                <Textarea
+                  placeholder="A interesting content here!"
+                  className="resize-none"
+                  {...field}
+                />
               </FormControl>
               {/* <FormDescription>This is your public display name.</FormDescription> */}
               <FormMessage />
@@ -114,15 +126,22 @@ export default function MyForm() {
         <FormField
           control={form.control}
           name="thumbnail"
-          render={({ field }) => (
+          render={({ field: { onChange, value, ...rest } }) => (
             <FormItem>
               <FormLabel>Thumbnail</FormLabel>
               <FormControl>
-                <Input placeholder=""
-                type="file"
-                // onChange={e => {field.onChange(e.target.files);}}
-                multiple
-                {...field} />
+                <Input
+                  placeholder=""
+                  type="file"
+                  onChange={(e) => {
+                    const { file, displayUrl } = getImageData(e);
+                    if (file && displayUrl) {
+                      setPreview(displayUrl);
+                      onChange(file);
+                    }
+                  }}
+                  {...rest}
+                />
               </FormControl>
               <FormDescription>
                 This is your public display thumbnail.
@@ -131,6 +150,14 @@ export default function MyForm() {
             </FormItem>
           )}
         />
+        {preview && (
+          <img
+            src={preview}
+            alt="thumbImg"
+            className="w-24 h-24 object-cover border-2"
+          />
+        )}
+
         <FormField
           control={form.control}
           name="isActive"
